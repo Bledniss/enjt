@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>ENJT roguelike v0.1.49</title>
+<title>ENJT roguelike v0.1.50</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Outfit:wght@500;700;900&display=swap" rel="stylesheet">
 <style>
@@ -55,7 +55,12 @@ input[type=range]{width:100%;accent-color:var(--cy);margin:8px 0}
 .box{text-align:left;font-size:12px;line-height:1.7;background:#161220;border:1px solid var(--line);border-radius:12px;padding:10px;max-height:300px;overflow-y:auto}
 .info-grid{display:grid;grid-template-columns:1fr 1.7fr;gap:6px 10px;text-align:left;font-size:11px;background:#161220;border:1px solid var(--line);border-radius:12px;padding:10px;max-height:300px;overflow-y:auto}
 .info-grid b{color:var(--gd)}.lore{font-size:11px;color:var(--mut);line-height:1.5;margin:10px 0 0;text-align:left}
-.version-tag{display:inline-block;margin-top:12px;padding:3px 10px;border-radius:99px;border:1px solid var(--line);font:700 11px var(--ft);color:var(--gd)}
+.version-tag{display:inline-block;margin-top:12px;padding:3px 10px;border-radius:99px;border:1px solid var(--line);font:700 11px var(--ft);color:var(--gd);cursor:pointer}
+.version-tag:active{transform:scale(.95)}
+/* Ventana de novedades (v0.1.50) */
+.news-ver{margin:8px 0 2px;font:800 13px var(--ft);color:var(--gd)}.news-ver:first-child{margin-top:0}
+.news-ver small{font:600 10px var(--fb);color:var(--cy);margin-left:6px;letter-spacing:.5px}
+#newsList ul{margin:0;padding-left:18px}#newsList li{margin:2px 0;line-height:1.45}
 .floating-text{position:absolute;font:900 16px var(--ft);pointer-events:none;animation:floatUp .9s ease-out forwards;z-index:45;text-shadow:0 2px 8px #000;transform:translate(-50%,-50%);will-change:transform,opacity;white-space:nowrap}
 @keyframes floatUp{0%{transform:translate(-50%,-50%) scale(.8);opacity:1}100%{transform:translate(-50%,-50%) translateY(-50px) scale(1.25);opacity:0}}
 .ach{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)}
@@ -126,7 +131,7 @@ textarea.field{height:130px;resize:none;line-height:1.45}
  <button id="mainSettingsBtn" class="btn" type="button">Ajustes</button>
  <button id="mainReportBtn" class="btn" type="button">Reportar un bug</button>
  <button id="menuExitBtn" class="btn ghost" type="button">Salir</button>
- <div id="versionTag" class="version-tag">v0.1.49</div>
+ <div id="versionTag" class="version-tag">v0.1.50</div>
 </div></div>
 
 <div id="playSubMenuModal" class="modal"><div class="panel">
@@ -165,6 +170,8 @@ textarea.field{height:130px;resize:none;line-height:1.45}
  <input id="volSlider" type="range" min="0" max="100" step="1" value="70" aria-label="Volumen">
  <div class="row"><span>Música</span><button id="musicBtn" class="btn small" type="button">Música: ON</button></div>
  <input id="musicSlider" type="range" min="0" max="100" step="1" value="50" aria-label="Volumen de la música">
+ <div class="row"><span>Controles invertidos</span><button id="invertBtn" class="btn small" type="button">OFF</button></div>
+ <p id="invertDesc" class="lore" style="margin:4px 0 0"></p>
  <div class="row"><span>Rendimiento</span></div>
  <div class="seg"><button id="fps30" class="btn" type="button">30 FPS</button><button id="fps60" class="btn" type="button">60 FPS</button></div>
  <button id="fullscreenBtn" class="btn" type="button">Pantalla completa</button>
@@ -175,6 +182,7 @@ textarea.field{height:130px;resize:none;line-height:1.45}
 <div id="reportModal" class="modal"><div class="panel">
  <h2>Reportar un bug</h2>
  <p class="note" style="color:var(--mut)">Cuéntanos qué ha fallado y qué estabas haciendo cuando ocurrió.</p>
+ <p id="reportGift" class="note"></p>
  <textarea id="reportText" class="field" maxlength="1000" placeholder="Describe el problema..."></textarea>
  <div id="reportCount">0 / 1000</div>
  <input id="reportEmail" class="field" type="email" maxlength="120" autocomplete="email" placeholder="Tu correo (opcional)">
@@ -182,6 +190,12 @@ textarea.field{height:130px;resize:none;line-height:1.45}
  <p id="reportStatus"></p>
  <button id="reportSend" class="btn primary" type="button">Enviar reporte</button>
  <button id="closeReport" class="btn ghost" type="button">Volver</button>
+</div></div>
+
+<div id="newsModal" class="modal"><div class="panel">
+ <h2>Novedades</h2>
+ <div id="newsList" class="box" style="max-height:340px"></div>
+ <button id="closeNews" class="btn primary" type="button">Entendido</button>
 </div></div>
 
 <div id="permShopModal" class="modal"><div class="panel">
@@ -375,10 +389,13 @@ const $ = id => document.getElementById(id);
 const menuCharBtn = $("menuCharBtn"), charBtnText = $("charBtnText"), menuExitBtn = $("menuExitBtn"), closedModal = $("closedModal"), reopenBtn = $("reopenBtn"), volSlider = $("volSlider"), fps30 = $("fps30"), fps60 = $("fps60"), fullscreenBtn = $("fullscreenBtn"), resetTutBtn = $("resetTutBtn"), confirmModal = $("confirmModal"), confirmTitle = $("confirmTitle"), confirmText = $("confirmText"), confirmOk = $("confirmOk"), confirmCancel = $("confirmCancel"), shopDiscountInfo = $("shopDiscountInfo"), permDiscountInfo = $("permDiscountInfo"), lvlCrystal = $("lvlCrystal"), lvlFire = $("lvlFire"), lvlBomb = $("lvlBomb");
 const menuSlotsBtn = $("menuSlotsBtn"), slotsBtnText = $("slotsBtnText"), slotsModal = $("slotsModal"), slotInfo = $("slotInfo"), slotResult = $("slotResult"), spinBtn = $("spinBtn"), prizeTable = $("prizeTable"), closeSlots = $("closeSlots"), slotsText = $("slotsText"), musicBtn = $("musicBtn"), musicSlider = $("musicSlider"), charGemsInfo = $("charGemsInfo");
 const reelEls = Array.from(document.querySelectorAll("#reels .reel"));
+const invertBtn = $("invertBtn"), invertDesc = $("invertDesc"), hintEl = $("hint"), newsModal = $("newsModal"), newsList = $("newsList"), closeNews = $("closeNews");
+// Controles: por defecto se arrastra hacia atrás (tirachinas); invertidos, hacia delante
+const aimSign = () => invertAim ? -1 : 1;
 
-const VERSION = "v0.1.49";
+const VERSION = "v0.1.50";
 let wiping = false; // true mientras se borra el progreso (evita que persist() reescriba datos)
-versionTag.textContent = VERSION;
+versionTag.textContent = VERSION + " · Novedades";
 const SAVE_KEY = "rogue_save_v014";
 const LEGACY = {redGems:["rogue_red_gems",0],blueGems:["rogue_blue_gems",0],permLifeLvl:["rogue_perm_life",0],permDamageLvl:["rogue_perm_dmg",0],permRedDmgLvl:["rogue_perm_red_dmg",1],crystalCoreLvl:["rogue_crystal_core_lvl",0],fireAmuletLvl:["rogue_fire_amulet_lvl",0],bombUnlocked:["rogue_bomb_unlocked",false],fusePurchased:["rogue_fuse_purchased",false],seismicBombFound:["rogue_seismic_bomb_found",false],crystalCoreMaxLvl:["rogue_crystal_core_max_lvl",0],fireAmuletMaxLvl:["rogue_fire_amulet_max_lvl",0],totalBlueGemsSpent:["rogue_blue_spent",0],bestScore:["rogue_best",0],bestMaxShots:["rogue_best_shots",0],totalRuns:["rogue_total_runs",0],tutSeenBlue:["rogue_tut_blue",false],tutSeenRed:["rogue_tut_red",false],tutSeenSpecial:["rogue_tut_special",false],tutSeenArtifact:["rogue_tut_artifact",false]};
 // Todo el progreso permanente vive en un único objeto JSON
@@ -407,14 +424,18 @@ function loadSave(){
   d.musicOn = d.musicOn !== false;
   d.musicVol = Number.isFinite(d.musicVol) ? Math.min(1, Math.max(0, d.musicVol)) : 0.5;
   d.tutSeenSlot = d.tutSeenSlot === true;
+  // v0.1.50: controles invertidos, última versión cuyas novedades se mostraron y regalo por primer reporte
+  d.invertAim = d.invertAim === true;
+  d.lastSeenVersion = typeof d.lastSeenVersion === "string" ? d.lastSeenVersion : "";
+  d.bugRewardClaimed = d.bugRewardClaimed === true;
   return d;
 }
 const SV = loadSave();
-let {collectibles, maxBlueRun, maxRedRun, ballsDestroyed, fpsCap, volume, slotItems, slotSpins, slotLevel, unlockedChars, musicOn, musicVol, tutSeenSlot} = SV;
+let {collectibles, maxBlueRun, maxRedRun, ballsDestroyed, fpsCap, volume, slotItems, slotSpins, slotLevel, unlockedChars, musicOn, musicVol, tutSeenSlot, invertAim, lastSeenVersion, bugRewardClaimed} = SV;
 let {redGems, blueGems, permLifeLvl, permDamageLvl, permRedDmgLvl, crystalCoreLvl, fireAmuletLvl, bombUnlocked, fusePurchased, seismicBombFound, crystalCoreMaxLvl, fireAmuletMaxLvl, totalBlueGemsSpent, bestScore, bestMaxShots, totalRuns, tutSeenBlue, tutSeenRed, tutSeenSpecial, tutSeenArtifact, gemsCollectedTotal, claimedAch, unlockedAch, selectedChar, soundOn} = SV;
 function persist(){
   if(wiping) return;
-  const o = {collectibles, maxBlueRun, maxRedRun, ballsDestroyed, fpsCap, volume, slotItems, slotSpins, slotLevel, unlockedChars, musicOn, musicVol, tutSeenSlot, redGems, blueGems, permLifeLvl, permDamageLvl, permRedDmgLvl, crystalCoreLvl, fireAmuletLvl, bombUnlocked, fusePurchased, seismicBombFound, crystalCoreMaxLvl, fireAmuletMaxLvl, totalBlueGemsSpent, bestScore, bestMaxShots, totalRuns, tutSeenBlue, tutSeenRed, tutSeenSpecial, tutSeenArtifact, gemsCollectedTotal, claimedAch, unlockedAch, selectedChar, soundOn};
+  const o = {collectibles, maxBlueRun, maxRedRun, ballsDestroyed, fpsCap, volume, slotItems, slotSpins, slotLevel, unlockedChars, musicOn, musicVol, tutSeenSlot, invertAim, lastSeenVersion, bugRewardClaimed, redGems, blueGems, permLifeLvl, permDamageLvl, permRedDmgLvl, crystalCoreLvl, fireAmuletLvl, bombUnlocked, fusePurchased, seismicBombFound, crystalCoreMaxLvl, fireAmuletMaxLvl, totalBlueGemsSpent, bestScore, bestMaxShots, totalRuns, tutSeenBlue, tutSeenRed, tutSeenSpecial, tutSeenArtifact, gemsCollectedTotal, claimedAch, unlockedAch, selectedChar, soundOn};
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(o)); } catch(_) {}
 }
 window.addEventListener("pagehide", persist);
@@ -765,7 +786,7 @@ function drawPickups(){
 // Trayectoria predicha: bolitas en movimiento a lo largo del camino.
 // Solo calcula y muestra los rebotes que permite el personaje (1; el Gafotas, 2).
 function drawAim(){
-  const dx = currentTouchX - startTouchX, dy = currentTouchY - startTouchY, len = Math.hypot(dx, dy);
+  const dx = (currentTouchX - startTouchX) * aimSign(), dy = (currentTouchY - startTouchY) * aimSign(), len = Math.hypot(dx, dy);
   if(len < 10) return;
   const ok = validAim(dx, dy, len), purple = (shotsCount === 0 && !seismicBombFound);
   const col = !ok ? "#5a5566" : (purple ? "#9878fa" : player.color);
@@ -1105,8 +1126,8 @@ return true;
 
 function launch(){
 if(!canLaunch() || shopModal.classList.contains("show") || !gameStarted || tutorialPaused){ aiming = false; return; }
-const dx = currentTouchX - startTouchX;
-const dy = currentTouchY - startTouchY;
+const dx = (currentTouchX - startTouchX) * aimSign();
+const dy = (currentTouchY - startTouchY) * aimSign();
 const len = Math.hypot(dx,dy);
 if(len < 10){ aiming = false; return; }
 if(!validAim(dx, dy, len)){ // bug 5: no se puede lanzar hacia atrás/horizontal
@@ -1147,7 +1168,7 @@ showFloatingTextAtElement("¡Monedas Insuficientes!", bombBtn, "#f42700");
 
 function updateHud(){ hudDirty = true; }
 function renderHud(){
-const key = [slotItems, slotLevel, musicOn, musicVol, unlockedChars.length, score, totalDmg(), totalRedDmg(), redGems, blueGems, shotsCount, lives, bombCost, collectibles, soundOn, volume, fpsCap, unlockedAch.length, claimedAch.length, bombUnlocked, fusePurchased, seismicBombFound, crystalCoreLvl, fireAmuletLvl, permLifeLvl, permDamageLvl, permRedDmgLvl, crystalCoreMaxLvl, fireAmuletMaxLvl, costLifeVal, costTempBlueDmgVal, buyPointsAmount, selectedChar].join("|");
+const key = [invertAim, slotItems, slotLevel, musicOn, musicVol, unlockedChars.length, score, totalDmg(), totalRedDmg(), redGems, blueGems, shotsCount, lives, bombCost, collectibles, soundOn, volume, fpsCap, unlockedAch.length, claimedAch.length, bombUnlocked, fusePurchased, seismicBombFound, crystalCoreLvl, fireAmuletLvl, permLifeLvl, permDamageLvl, permRedDmgLvl, crystalCoreMaxLvl, fireAmuletMaxLvl, costLifeVal, costTempBlueDmgVal, buyPointsAmount, selectedChar].join("|");
 if(key === lastHudKey) return; lastHudKey = key;
 scoreEl.textContent = score;
 
@@ -1159,6 +1180,9 @@ achBadge.textContent = pend ? `Logros (${pend} por reclamar)` : "Logros";
 buyConvertBlue.disabled = blueGems < 50;
 soundBtn.textContent = "Sonido: " + (soundOn ? "ON" : "OFF");
 musicBtn.textContent = "Música: " + (musicOn ? "ON" : "OFF");
+invertBtn.textContent = invertAim ? "ON" : "OFF";
+invertDesc.textContent = invertAim ? "Arrastra hacia delante: la bola sale hacia donde arrastras." : "Arrastra hacia atrás, como un tirachinas: la bola sale en sentido contrario.";
+hintEl.textContent = invertAim ? "Arrastra hacia arriba para apuntar y suelta para lanzar" : "Arrastra hacia abajo para apuntar y suelta para lanzar";
 musicSlider.value = Math.round(musicVol * 100);
 slotsText.textContent = slotItems;
 slotsBtnText.textContent = "Tragamonedas (" + slotItems + " 🎰)";
@@ -1430,14 +1454,47 @@ closeInfo.addEventListener("click", () => { infoModal.classList.remove("show"); 
 
 mainSettingsBtn.addEventListener("click", () => { settingsModal.classList.add("show"); });
 closeSettings.addEventListener("click", () => { settingsModal.classList.remove("show"); });
+invertBtn.addEventListener("click", () => { invertAim = !invertAim; persist(); updateHud(); Sfx.play("ok"); });
+
+// ===== Novedades (v0.1.50): se muestran solas la primera vez que se abre cada versión y al pulsar la etiqueta de versión =====
+// Añadir cada versión nueva al principio de la lista.
+const CHANGELOG = [
+  {v: "v0.1.50", items: [
+    "Controles invertidos: actívalos en Ajustes para lanzar arrastrando hacia delante en vez de hacia atrás.",
+    "Ventana de novedades: aparece al estrenar cada versión y también al pulsar el número de versión del menú.",
+    "Regalo por tiempo limitado: +10 🎰 por enviar tu primer reporte de bug."
+  ]},
+  {v: "v0.1.49", items: [
+    "Nuevo botón «Reportar un bug» en el menú principal."
+  ]},
+  {v: "v0.1.47", items: [
+    "Personajes desbloqueables con gemas: Destructor de triángulos, Recolector de gemas y Gafotas.",
+    "Tragamonedas en el menú Jugar y fichas 🎰 Slot que aparecen durante la partida.",
+    "Música en el menú y en partida.",
+    "Nueva paleta de colores y fondo arcano.",
+    "La bola múltiplo de 5 es azul, como las gemas que suelta."
+  ]}
+];
+function openNews(){
+  newsList.innerHTML = CHANGELOG.map(c => `<div class="news-ver">${c.v}${c.v === VERSION ? "<small>VERSIÓN ACTUAL</small>" : ""}</div><ul>${c.items.map(i => `<li>${i}</li>`).join("")}</ul>`).join("");
+  newsList.scrollTop = 0; newsModal.classList.add("show");
+}
+versionTag.addEventListener("click", () => { Sfx.play("ok"); openNews(); });
+closeNews.addEventListener("click", () => { newsModal.classList.remove("show"); });
+if(lastSeenVersion !== VERSION){ lastSeenVersion = VERSION; persist(); openNews(); } // primera vez con esta versión
 
 // ===== Reporte de bugs (v0.1.49): el mensaje se envía a un formulario de Formspree =====
 const REPORT_FORM_ID = "xvkzplqq"; // identificador del formulario (https://formspree.io/f/<ID>)
 const REPORT_MIN_CHARS = 10, REPORT_COOLDOWN_MS = 60000; // límites contra envíos vacíos o repetidos
 const mainReportBtn = $("mainReportBtn"), reportModal = $("reportModal"), reportText = $("reportText"), reportEmail = $("reportEmail"), reportCount = $("reportCount"), reportStatus = $("reportStatus"), reportSend = $("reportSend"), closeReport = $("closeReport");
 let reportBusy = false, lastReportAt = 0;
+// Regalo temporal (v0.1.50): Slots por el primer reporte de cada jugador. Poner BUG_REWARD_ACTIVE a false para retirarlo.
+const BUG_REWARD_ACTIVE = true, BUG_REWARD_SLOTS = 10;
+const reportGift = $("reportGift");
+const giftPending = () => BUG_REWARD_ACTIVE && !bugRewardClaimed;
+function renderReportGift(){ reportGift.textContent = giftPending() ? `🎁 Por tiempo limitado: +${BUG_REWARD_SLOTS} 🎰 por tu primer reporte` : ""; }
 function reportMsg(text, ok){ reportStatus.textContent = text; reportStatus.style.color = ok ? "var(--cy)" : "var(--mg)"; }
-mainReportBtn.addEventListener("click", () => { reportMsg("", true); reportModal.classList.add("show"); });
+mainReportBtn.addEventListener("click", () => { reportMsg("", true); renderReportGift(); reportModal.classList.add("show"); });
 closeReport.addEventListener("click", () => { reportText.blur(); reportEmail.blur(); reportModal.classList.remove("show"); });
 reportText.addEventListener("input", () => { reportCount.textContent = reportText.value.length + " / 1000"; });
 reportSend.addEventListener("click", async () => {
@@ -1463,7 +1520,10 @@ reportSend.addEventListener("click", async () => {
     const res = await fetch("https://formspree.io/f/" + REPORT_FORM_ID, {method: "POST", headers: {"Content-Type": "application/json", "Accept": "application/json"}, body: JSON.stringify(data)});
     if(!res.ok) throw new Error("HTTP " + res.status);
     lastReportAt = Date.now(); reportText.value = ""; reportCount.textContent = "0 / 1000";
-    reportMsg("¡Reporte enviado! Gracias por ayudar a mejorar el juego.", true); Sfx.play("ok");
+    if(giftPending()){ // regalo por el primer reporte
+      bugRewardClaimed = true; slotItems += BUG_REWARD_SLOTS; persist(); updateHud(); renderReportGift();
+      reportMsg(`¡Reporte enviado! Regalo: +${BUG_REWARD_SLOTS} 🎰 para la Tragamonedas.`, true); Sfx.play("ach");
+    } else { reportMsg("¡Reporte enviado! Gracias por ayudar a mejorar el juego.", true); Sfx.play("ok"); }
   } catch(_) {
     reportMsg("No se pudo enviar. Revisa tu conexión e inténtalo de nuevo.", false); Sfx.play("fail");
   }
