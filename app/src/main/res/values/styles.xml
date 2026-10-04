@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="fondo">#0D0A12</color>
+
+    <style name="Tema" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/fondo</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:statusBarColor">@color/fondo</item>
+        <item name="android:navigationBarColor">@color/fondo</item>
+    </style>
+</resources>

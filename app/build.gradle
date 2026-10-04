@@ -1,0 +1,62 @@
+import groovy.json.JsonSlurper
+
+plugins {
+    id 'com.android.application'
+}
+
+// La versión de la app es la del juego incluido: se lee de web/version.json
+def gameVersion = new JsonSlurper().parse(file("$rootDir/web/version.json")).version as String
+def v = gameVersion.tokenize('.').collect { it as int }
+
+// Firma fija opcional (secretos de GitHub). Sin ella se usa la clave de depuración de cada compilación.
+def keystorePath = System.getenv("KEYSTORE_FILE")
+
+android {
+    namespace 'com.enjt.roguelike'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.enjt.roguelike'
+        minSdk 26
+        targetSdk 34
+        versionCode v[0] * 1000000 + v[1] * 1000 + v[2]
+        versionName gameVersion
+        // Carpeta web (HTTPS) donde la app busca version.json y el HTML nuevo; vacío = sin actualizaciones
+        buildConfigField "String", "UPDATE_URL", "\"${project.findProperty('updateUrl') ?: ''}\""
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    // El juego (web/index.html) viaja dentro de la APK como recurso
+    sourceSets {
+        main {
+            assets.srcDirs += ["$rootDir/web"]
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    signingConfigs {
+        fija {
+            if (keystorePath) {
+                storeFile file(keystorePath)
+                storePassword System.getenv("KEYSTORE_PASSWORD")
+                keyAlias System.getenv("KEY_ALIAS") ?: "enjt"
+                keyPassword System.getenv("KEYSTORE_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            if (keystorePath) {
+                signingConfig signingConfigs.fija
+            }
+        }
+    }
+}

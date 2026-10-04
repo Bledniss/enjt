@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Icono provisional: bola de fuego con aro dorado y triángulo azul (paleta del juego) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- aro dorado -->
+    <path
+        android:fillColor="#FDC802"
+        android:pathData="M54,54m-27,0a27,27 0,1 1,54 0a27,27 0,1 1,-54 0" />
+    <!-- bola -->
+    <path
+        android:fillColor="#F42700"
+        android:pathData="M54,54m-23,0a23,23 0,1 1,46 0a23,23 0,1 1,-46 0" />
+    <!-- brillo -->
+    <path
+        android:fillColor="#FD9801"
+        android:pathData="M46,45m-9,0a9,9 0,1 1,18 0a9,9 0,1 1,-18 0" />
+    <!-- triángulo de cristal -->
+    <path
+        android:fillColor="#03B7FC"
+        android:pathData="M54,46L66,66L42,66Z" />
+    <path
+        android:fillColor="#0247EA"
+        android:pathData="M54,54L60,64L48,64Z" />
+</vector>
