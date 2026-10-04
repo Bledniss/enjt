@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>ENJT roguelike v0.1.47</title>
+<title>ENJT roguelike v0.1.48</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Outfit:wght@500;700;900&display=swap" rel="stylesheet">
 <style>
@@ -118,7 +118,7 @@ input[type=range]{width:100%;accent-color:var(--cy);margin:8px 0}
  <button id="mainPlayBtn" class="btn primary" type="button">Jugar</button>
  <button id="mainSettingsBtn" class="btn" type="button">Ajustes</button>
  <button id="menuExitBtn" class="btn ghost" type="button">Salir</button>
- <div id="versionTag" class="version-tag">v0.1.47</div>
+ <div id="versionTag" class="version-tag">v0.1.48</div>
 </div></div>
 
 <div id="playSubMenuModal" class="modal"><div class="panel">
@@ -356,7 +356,7 @@ const menuCharBtn = $("menuCharBtn"), charBtnText = $("charBtnText"), menuExitBt
 const menuSlotsBtn = $("menuSlotsBtn"), slotsBtnText = $("slotsBtnText"), slotsModal = $("slotsModal"), slotInfo = $("slotInfo"), slotResult = $("slotResult"), spinBtn = $("spinBtn"), prizeTable = $("prizeTable"), closeSlots = $("closeSlots"), slotsText = $("slotsText"), musicBtn = $("musicBtn"), musicSlider = $("musicSlider"), charGemsInfo = $("charGemsInfo");
 const reelEls = Array.from(document.querySelectorAll("#reels .reel"));
 
-const VERSION = "v0.1.47";
+const VERSION = "v0.1.48";
 let wiping = false; // true mientras se borra el progreso (evita que persist() reescriba datos)
 versionTag.textContent = VERSION;
 const SAVE_KEY = "rogue_save_v014";
