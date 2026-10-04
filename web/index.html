@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>ENJT roguelike v0.1.48</title>
+<title>ENJT roguelike v0.1.49</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Outfit:wght@500;700;900&display=swap" rel="stylesheet">
 <style>
@@ -85,6 +85,13 @@ input[type=range]{width:100%;accent-color:var(--cy);margin:8px 0}
 .prize{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:11px;line-height:1.4}
 .prize .ps{width:28px;height:28px;flex:none;display:grid;place-items:center}.prize .ps img{width:26px;height:26px;object-fit:contain}.prize .ps .sym7{font-size:24px}.prize .ps .symLvl{font-size:18px}.prize .ps .symLvl small{display:none}
 .prize>div:nth-child(2){flex:1}.prize i{font-style:normal;color:var(--mut)}.prize>div:last-child{color:var(--gd);font-weight:700}
+/* Reporte de bugs (v0.1.49) */
+.field{display:block;width:100%;margin-top:8px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:#161220;color:var(--tx);font:500 13px var(--fb);outline:none;user-select:text;-webkit-user-select:text;touch-action:auto}
+.field:focus{border-color:var(--cy);box-shadow:0 0 12px rgba(3,183,252,.25)}
+textarea.field{height:130px;resize:none;line-height:1.45}
+.field::placeholder{color:#7d748c}
+#reportCount{text-align:right;font-size:10px;color:var(--mut);margin:3px 2px 0}
+#reportStatus{min-height:16px;margin:8px 0 0;font:700 12px var(--ft)}
 #rotateHint{display:none;position:fixed;inset:0;z-index:99;background:#0d0a12;align-items:center;justify-content:center;text-align:center;font:700 16px var(--ft);color:var(--cy);padding:20px}
 @media (orientation:landscape) and (max-height:480px) and (pointer:coarse){#rotateHint{display:flex}}
 </style>
@@ -117,8 +124,9 @@ input[type=range]{width:100%;accent-color:var(--cy);margin:8px 0}
  <h1 id="wobblyTitle" class="game-title">ENJT<br>roguelike</h1>
  <button id="mainPlayBtn" class="btn primary" type="button">Jugar</button>
  <button id="mainSettingsBtn" class="btn" type="button">Ajustes</button>
+ <button id="mainReportBtn" class="btn" type="button">Reportar un bug</button>
  <button id="menuExitBtn" class="btn ghost" type="button">Salir</button>
- <div id="versionTag" class="version-tag">v0.1.48</div>
+ <div id="versionTag" class="version-tag">v0.1.49</div>
 </div></div>
 
 <div id="playSubMenuModal" class="modal"><div class="panel">
@@ -162,6 +170,18 @@ input[type=range]{width:100%;accent-color:var(--cy);margin:8px 0}
  <button id="fullscreenBtn" class="btn" type="button">Pantalla completa</button>
  <button id="menuResetBtn" class="btn danger" type="button">Reiniciar Progreso</button>
  <button id="closeSettings" class="btn ghost" type="button">Volver</button>
+</div></div>
+
+<div id="reportModal" class="modal"><div class="panel">
+ <h2>Reportar un bug</h2>
+ <p class="note" style="color:var(--mut)">Cuéntanos qué ha fallado y qué estabas haciendo cuando ocurrió.</p>
+ <textarea id="reportText" class="field" maxlength="1000" placeholder="Describe el problema..."></textarea>
+ <div id="reportCount">0 / 1000</div>
+ <input id="reportEmail" class="field" type="email" maxlength="120" autocomplete="email" placeholder="Tu correo (opcional)">
+ <p class="lore" style="margin-top:8px">Junto a tu mensaje se envían la versión del juego, tu personaje, tus estadísticas de partida y el modelo de dispositivo y navegador. Nada más.</p>
+ <p id="reportStatus"></p>
+ <button id="reportSend" class="btn primary" type="button">Enviar reporte</button>
+ <button id="closeReport" class="btn ghost" type="button">Volver</button>
 </div></div>
 
 <div id="permShopModal" class="modal"><div class="panel">
@@ -356,7 +376,7 @@ const menuCharBtn = $("menuCharBtn"), charBtnText = $("charBtnText"), menuExitBt
 const menuSlotsBtn = $("menuSlotsBtn"), slotsBtnText = $("slotsBtnText"), slotsModal = $("slotsModal"), slotInfo = $("slotInfo"), slotResult = $("slotResult"), spinBtn = $("spinBtn"), prizeTable = $("prizeTable"), closeSlots = $("closeSlots"), slotsText = $("slotsText"), musicBtn = $("musicBtn"), musicSlider = $("musicSlider"), charGemsInfo = $("charGemsInfo");
 const reelEls = Array.from(document.querySelectorAll("#reels .reel"));
 
-const VERSION = "v0.1.48";
+const VERSION = "v0.1.49";
 let wiping = false; // true mientras se borra el progreso (evita que persist() reescriba datos)
 versionTag.textContent = VERSION;
 const SAVE_KEY = "rogue_save_v014";
@@ -1410,6 +1430,45 @@ closeInfo.addEventListener("click", () => { infoModal.classList.remove("show"); 
 
 mainSettingsBtn.addEventListener("click", () => { settingsModal.classList.add("show"); });
 closeSettings.addEventListener("click", () => { settingsModal.classList.remove("show"); });
+
+// ===== Reporte de bugs (v0.1.49): el mensaje se envía a un formulario de Formspree =====
+const REPORT_FORM_ID = "xvkzplqq"; // identificador del formulario (https://formspree.io/f/<ID>)
+const REPORT_MIN_CHARS = 10, REPORT_COOLDOWN_MS = 60000; // límites contra envíos vacíos o repetidos
+const mainReportBtn = $("mainReportBtn"), reportModal = $("reportModal"), reportText = $("reportText"), reportEmail = $("reportEmail"), reportCount = $("reportCount"), reportStatus = $("reportStatus"), reportSend = $("reportSend"), closeReport = $("closeReport");
+let reportBusy = false, lastReportAt = 0;
+function reportMsg(text, ok){ reportStatus.textContent = text; reportStatus.style.color = ok ? "var(--cy)" : "var(--mg)"; }
+mainReportBtn.addEventListener("click", () => { reportMsg("", true); reportModal.classList.add("show"); });
+closeReport.addEventListener("click", () => { reportText.blur(); reportEmail.blur(); reportModal.classList.remove("show"); });
+reportText.addEventListener("input", () => { reportCount.textContent = reportText.value.length + " / 1000"; });
+reportSend.addEventListener("click", async () => {
+  if(reportBusy) return;
+  const message = reportText.value.trim(), email = reportEmail.value.trim();
+  if(message.length < REPORT_MIN_CHARS){ Sfx.play("fail"); reportMsg("Describe el problema con un poco más de detalle.", false); return; }
+  if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ Sfx.play("fail"); reportMsg("El correo no parece válido. Puedes dejarlo vacío.", false); return; }
+  const wait = Math.ceil((REPORT_COOLDOWN_MS - (Date.now() - lastReportAt)) / 1000);
+  if(wait > 0){ Sfx.play("fail"); reportMsg("Espera " + wait + " s antes de enviar otro reporte.", false); return; }
+  if(!REPORT_FORM_ID){ Sfx.play("fail"); reportMsg("El envío de reportes aún no está configurado.", false); return; }
+  const data = {
+    mensaje: message,
+    version: VERSION,
+    personaje: player.def.name,
+    estadisticas: `partidas ${totalRuns} · récord de tiros ${bestMaxShots} · récord de monedas ${bestScore} · máquina nv. ${slotLevel}`,
+    dispositivo: navigator.userAgent,
+    pantalla: `${innerWidth}x${innerHeight} @${devicePixelRatio || 1}x`,
+    _subject: "Bug ENJT " + VERSION
+  };
+  if(email) data.email = email;
+  reportBusy = true; reportSend.disabled = true; reportMsg("Enviando...", true);
+  try {
+    const res = await fetch("https://formspree.io/f/" + REPORT_FORM_ID, {method: "POST", headers: {"Content-Type": "application/json", "Accept": "application/json"}, body: JSON.stringify(data)});
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    lastReportAt = Date.now(); reportText.value = ""; reportCount.textContent = "0 / 1000";
+    reportMsg("¡Reporte enviado! Gracias por ayudar a mejorar el juego.", true); Sfx.play("ok");
+  } catch(_) {
+    reportMsg("No se pudo enviar. Revisa tu conexión e inténtalo de nuevo.", false); Sfx.play("fail");
+  }
+  reportBusy = false; reportSend.disabled = false;
+});
 
 soundBtn.addEventListener("click", () => { soundOn = !soundOn; persist(); updateHud(); Sfx.play("ok"); });
 musicBtn.addEventListener("click", () => { musicOn = !musicOn; if(musicOn && musicVol <= 0) musicVol = 0.5; Music.setVol(); persist(); updateHud(); Sfx.play("ok"); });
