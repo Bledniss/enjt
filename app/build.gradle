@@ -10,6 +10,17 @@ def v = gameVersion.tokenize('.').collect { it as int }
 
 // Firma fija opcional (secretos de GitHub). Sin ella se usa la clave de depuración de cada compilación.
 def keystorePath = System.getenv("KEYSTORE_FILE")
+def keystorePass = System.getenv("KEYSTORE_PASSWORD")
+// El alias se lee del propio almacén PKCS12 (los generados en Windows no usan un alias predecible).
+// Si la contraseña o el archivo no son correctos, la compilación falla aquí en vez de firmar con otra clave.
+def keystoreAlias = null
+if (keystorePath) {
+    def ks = java.security.KeyStore.getInstance("PKCS12")
+    new File(keystorePath).withInputStream { ks.load(it, keystorePass.toCharArray()) }
+    keystoreAlias = ks.aliases().toList().find { ks.isKeyEntry(it) }
+    if (keystoreAlias == null) throw new GradleException("El almacén de firma no contiene ninguna clave privada")
+    println "Firma fija: alias '${keystoreAlias}'"
+}
 
 android {
     namespace 'com.enjt.roguelike'
@@ -45,9 +56,10 @@ android {
         fija {
             if (keystorePath) {
                 storeFile file(keystorePath)
-                storePassword System.getenv("KEYSTORE_PASSWORD")
-                keyAlias System.getenv("KEY_ALIAS") ?: "enjt"
-                keyPassword System.getenv("KEYSTORE_PASSWORD")
+                storeType "pkcs12"
+                storePassword keystorePass
+                keyAlias keystoreAlias
+                keyPassword keystorePass
             }
         }
     }

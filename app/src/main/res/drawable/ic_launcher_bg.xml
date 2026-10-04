@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fondo del icono: hierro oscuro del juego, algo más claro en el centro -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:type="radial"
+        android:gradientRadius="60dp"
+        android:startColor="#2B2435"
+        android:endColor="#0D0A12" />
+</shape>
