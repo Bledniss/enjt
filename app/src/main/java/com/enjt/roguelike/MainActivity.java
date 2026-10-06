@@ -40,7 +40,9 @@ public class MainActivity extends Activity {
     private static final String GAME_URL = "https://" + HOST + "/index.html";
     private static final String PREFS = "actualizador";
     private static final String KEY_VERSION = "version_descargada";
+    private static final String KEY_BUILD = "build_descargado";
     private static final String GAME_FILE = "game.html";
+    private static final String GITHUB_API = "https://api.github.com/";
 
     private WebView web;
     private SharedPreferences prefs;
@@ -93,37 +95,56 @@ public class MainActivity extends Activity {
 
     /** Versión que se está jugando: la descargada si es más nueva que la incluida en la APK. */
     private String currentVersion() {
+        return usingDownloaded() ? prefs.getString(KEY_VERSION, BuildConfig.VERSION_NAME) : BuildConfig.VERSION_NAME;
+    }
+
+    /** Número de compilación de lo que se está jugando (0 si version.json no lo indica). */
+    private int currentBuild() {
+        return usingDownloaded() ? prefs.getInt(KEY_BUILD, 0) : BuildConfig.GAME_BUILD;
+    }
+
+    /** ¿El juego descargado es más nuevo que el incluido en la APK? Misma versión: decide el número de compilación. */
+    private boolean usingDownloaded() {
         String downloaded = prefs.getString(KEY_VERSION, null);
-        File f = new File(getFilesDir(), GAME_FILE);
-        if (downloaded != null && f.length() > 0 && compareVersions(downloaded, BuildConfig.VERSION_NAME) > 0) {
-            return downloaded;
-        }
-        return BuildConfig.VERSION_NAME;
+        if (downloaded == null || new File(getFilesDir(), GAME_FILE).length() == 0) return false;
+        int c = compareVersions(downloaded, BuildConfig.VERSION_NAME);
+        return c > 0 || (c == 0 && prefs.getInt(KEY_BUILD, 0) > BuildConfig.GAME_BUILD);
     }
 
     private InputStream openGame() throws IOException {
-        if (!currentVersion().equals(BuildConfig.VERSION_NAME)) {
+        if (usingDownloaded()) {
             return new FileInputStream(new File(getFilesDir(), GAME_FILE));
         }
         return getAssets().open("index.html");
     }
 
     /**
-     * Consulta version.json en UPDATE_URL y, si anuncia una versión más nueva, descarga el HTML.
-     * La nueva versión se usa a partir del siguiente arranque. Cualquier fallo (sin conexión,
-     * archivo corrupto...) se ignora y se sigue jugando con la versión actual.
+     * Dirección de un archivo de actualización. UPDATE_URL es una carpeta (se le añade "/archivo")
+     * o una plantilla con el hueco {file} (API de GitHub para el canal beta, que es privado).
+     */
+    private static String urlFor(String name) {
+        String base = BuildConfig.UPDATE_URL;
+        String url = base.contains("{file}") ? base.replace("{file}", name) : base + "/" + name;
+        return url + (url.contains("?") ? "&" : "?") + "t=" + System.currentTimeMillis(); // evita cachés
+    }
+
+    /**
+     * Consulta version.json en UPDATE_URL y, si anuncia algo más nuevo, descarga el HTML: una versión mayor
+     * o, con la misma versión, un número de compilación ("build") mayor.
+     * Lo descargado se usa a partir del siguiente arranque. Cualquier fallo (sin conexión,
+     * archivo corrupto...) se ignora y se sigue jugando con lo actual.
      */
     private void checkForUpdate() {
-        final String base = BuildConfig.UPDATE_URL;
-        if (base.isEmpty()) return;
+        if (BuildConfig.UPDATE_URL.isEmpty()) return;
         new Thread(() -> {
             try {
-                String noCache = "?t=" + System.currentTimeMillis();
-                JSONObject info = new JSONObject(new String(fetch(base + "/version.json" + noCache, 64 * 1024), StandardCharsets.UTF_8));
+                JSONObject info = new JSONObject(new String(fetch(urlFor("version.json"), 64 * 1024), StandardCharsets.UTF_8));
                 String remote = info.getString("version");
-                if (compareVersions(remote, currentVersion()) <= 0) return;
+                int remoteBuild = info.optInt("build", 0);
+                int cmp = compareVersions(remote, currentVersion());
+                if (cmp < 0 || (cmp == 0 && remoteBuild <= currentBuild())) return;
 
-                byte[] html = fetch(base + "/" + info.optString("file", "index.html") + noCache, 16 * 1024 * 1024);
+                byte[] html = fetch(urlFor(info.optString("file", "index.html")), 16 * 1024 * 1024);
                 if (html.length < 1000 || !new String(html, StandardCharsets.UTF_8).contains("</html>")) return;
                 String sha = info.optString("sha256", "");
                 if (!sha.isEmpty() && !sha.equalsIgnoreCase(sha256(html))) return;
@@ -133,9 +154,10 @@ public class MainActivity extends Activity {
                     out.write(html);
                 }
                 if (!tmp.renameTo(new File(getFilesDir(), GAME_FILE))) return;
-                prefs.edit().putString(KEY_VERSION, remote).apply();
+                prefs.edit().putString(KEY_VERSION, remote).putInt(KEY_BUILD, remoteBuild).apply();
+                final String label = remote + (cmp == 0 ? " (compilación " + remoteBuild + ")" : "");
                 runOnUiThread(() -> Toast.makeText(this,
-                        "Versión " + remote + " descargada. Se aplicará al reiniciar el juego.",
+                        "Versión " + label + " descargada. Se aplicará al reiniciar el juego.",
                         Toast.LENGTH_LONG).show());
             } catch (Exception ignored) {
             }
@@ -148,6 +170,12 @@ public class MainActivity extends Activity {
         c.setConnectTimeout(8000);
         c.setReadTimeout(15000);
         c.setUseCaches(false);
+        // Canal beta: el repositorio es privado y se lee con una clave de solo lectura, enviada únicamente a GitHub
+        if (!BuildConfig.UPDATE_TOKEN.isEmpty() && url.startsWith(GITHUB_API)) {
+            c.setRequestProperty("Authorization", "Bearer " + BuildConfig.UPDATE_TOKEN);
+            c.setRequestProperty("Accept", "application/vnd.github.raw+json");
+            c.setRequestProperty("X-GitHub-Api-Version", "2022-11-28");
+        }
         try {
             if (c.getResponseCode() != 200) throw new IOException("HTTP " + c.getResponseCode());
             try (InputStream in = c.getInputStream()) {

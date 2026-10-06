@@ -5,10 +5,19 @@ plugins {
 }
 
 // La versión de la app es la del juego incluido: se lee de web/version.json
-def gameVersion = new JsonSlurper().parse(file("$rootDir/web/version.json")).version as String
+def gameInfo = new JsonSlurper().parse(file("$rootDir/web/version.json"))
+def gameVersion = gameInfo.version as String
+def gameBuild = (gameInfo.build ?: 0) as int // número de compilación opcional: distingue dos builds de la misma versión
 def v = gameVersion.tokenize('.').collect { it as int }
 
-// Firma fija opcional (secretos de GitHub). Sin ella se usa la clave de depuración de cada compilación.
+// -Pbeta: app aparte ("ENJT beta") que convive con la normal y tiene su propio progreso
+def isBeta = project.hasProperty('beta')
+// Canal beta: se actualiza desde el repositorio privado con una clave de solo lectura (secreto BETA_READ_TOKEN).
+// La app normal nunca lleva clave; sin clave, la beta no busca actualizaciones.
+def updateToken = isBeta ? (System.getenv("BETA_READ_TOKEN") ?: "") : ""
+def updateUrl = (isBeta && !updateToken) ? "" : (project.findProperty('updateUrl') ?: "")
+
+// Firma fija (secretos de GitHub). Sin ella se firma con la clave de depuración de cada compilación.
 def keystorePath = System.getenv("KEYSTORE_FILE")
 def keystorePass = System.getenv("KEYSTORE_PASSWORD")
 // El alias se lee del propio almacén PKCS12 (los generados en Windows no usan un alias predecible).
@@ -20,6 +29,8 @@ if (keystorePath) {
     keystoreAlias = ks.aliases().toList().find { ks.isKeyEntry(it) }
     if (keystoreAlias == null) throw new GradleException("El almacén de firma no contiene ninguna clave privada")
     println "Firma fija: alias '${keystoreAlias}'"
+} else {
+    println "AVISO: sin secretos de firma; la APK se firma con la clave de depuración y no podrá instalarse encima de otra"
 }
 
 android {
@@ -28,12 +39,18 @@ android {
 
     defaultConfig {
         applicationId 'com.enjt.roguelike'
+        if (isBeta) applicationIdSuffix '.beta'
         minSdk 26
         targetSdk 34
         versionCode v[0] * 1000000 + v[1] * 1000 + v[2]
         versionName gameVersion
-        // Carpeta web (HTTPS) donde la app busca version.json y el HTML nuevo; vacío = sin actualizaciones
-        buildConfigField "String", "UPDATE_URL", "\"${project.findProperty('updateUrl') ?: ''}\""
+        // Dónde busca la app version.json y el HTML nuevo (carpeta HTTPS o plantilla con {file}); vacío = sin actualizaciones
+        buildConfigField "String", "UPDATE_URL", "\"${updateUrl}\""
+        buildConfigField "String", "UPDATE_TOKEN", "\"${updateToken}\""
+        buildConfigField "int", "GAME_BUILD", "${gameBuild}"
+        // Nombre e icono distinguen la beta de la app normal
+        resValue "string", "nombre_app", isBeta ? "ENJT beta" : "ENJT"
+        resValue "color", "icono_centro", isBeta ? "#A80A00" : "#2B2435"
     }
 
     buildFeatures {
@@ -65,10 +82,21 @@ android {
     }
 
     buildTypes {
+        // Publicación: no depurable (sin inspección del WebView) y con el contenedor ofuscado por R8
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+            signingConfig(keystorePath ? signingConfigs.fija : signingConfigs.debug)
+        }
         debug {
             if (keystorePath) {
                 signingConfig signingConfigs.fija
             }
         }
+    }
+
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
     }
 }
